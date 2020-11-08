@@ -1,0 +1,39 @@
+{
+	"name": "InvoicesCountryPipeline",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "InvoicesDelimitedText",
+						"type": "DatasetReference"
+					},
+					"name": "IncoucesCountrysource"
+				},
+				{
+					"dataset": {
+						"referenceName": "CountryTable",
+						"type": "DatasetReference"
+					},
+					"name": "CountrySource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "CustomerlTable",
+						"type": "DatasetReference"
+					},
+					"name": "InvoicesCountrySink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CountryLookup"
+				}
+			],
+			"script": "source(output(\n\t\tInvoiceNo as integer '######',\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer '######',\n\t\tInvoiceDate as timestamp 'MM-dd-yyyy HH:mm',\n\t\tUnitPrice as double '######.##',\n\t\tCustomerID as integer '######',\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> IncoucesCountrysource\nsource(output(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CountrySource\nIncoucesCountrysource, CountrySource lookup(IncoucesCountrysource@Country == CountrySource@Country,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> CountryLookup\nCountryLookup sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountryCd as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete from customer_invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountryCd\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InvoicesCountrySink"
+		}
+	}
+}

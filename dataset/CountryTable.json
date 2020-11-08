@@ -1,0 +1,30 @@
+{
+	"name": "CountryTable",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Retail3AzureSqlDatabase",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "CountryId",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "CountryCd",
+				"type": "varchar"
+			},
+			{
+				"name": "Country",
+				"type": "varchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "country_ref"
+		}
+	}
+}
