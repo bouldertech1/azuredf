@@ -1,0 +1,46 @@
+{
+	"name": "InvoicesContiditinalDataflow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "InvoicesDelimitedText",
+						"type": "DatasetReference"
+					},
+					"name": "InvoicesConditionalSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "LowValueInvoiceTable",
+						"type": "DatasetReference"
+					},
+					"name": "LowValueInvoicesSink"
+				},
+				{
+					"dataset": {
+						"referenceName": "HighValueInvoicesTable",
+						"type": "DatasetReference"
+					},
+					"name": "HighValueInvoicesSink"
+				},
+				{
+					"dataset": {
+						"referenceName": "InvoicesTable",
+						"type": "DatasetReference"
+					},
+					"name": "InvoicesGeneralSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "InvoicesConditionalSplit"
+				}
+			],
+			"script": "source(output(\n\t\tInvoiceNo as integer '######',\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer '######',\n\t\tInvoiceDate as timestamp 'MM-dd-yyyy HH:mm',\n\t\tUnitPrice as double '######.##',\n\t\tCustomerID as integer '######',\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> InvoicesConditionalSource\nInvoicesConditionalSource split(UnitPrice <= 10,\n\tUnitPrice > 49,\n\tdisjoint: false) ~> InvoicesConditionalSplit@(LowValueInvoices, HighValueInvoices, Invoices)\nInvoicesConditionalSplit@LowValueInvoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From low_value_invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> LowValueInvoicesSink\nInvoicesConditionalSplit@HighValueInvoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From high_value_invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> HighValueInvoicesSink\nInvoicesConditionalSplit@Invoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From Invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InvoicesGeneralSink"
+		}
+	}
+}
