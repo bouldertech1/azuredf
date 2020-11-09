@@ -22,7 +22,7 @@
 					},
 					"sink": {
 						"type": "AzureSqlSink",
-						"preCopyScript": "Delete From new_county_ref",
+						"preCopyScript": "Delete From new_country_ref",
 						"disableMetricsCollection": false
 					},
 					"enableStaging": false,
