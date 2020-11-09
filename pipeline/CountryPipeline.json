@@ -26,12 +26,6 @@
 				}
 			}
 		],
-		"parameters": {
-			"DatabaseServerNm": {
-				"type": "string",
-				"defaultValue": "'retail3.database.windows.net'"
-			}
-		},
 		"annotations": []
 	}
 }
