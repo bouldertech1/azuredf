@@ -89,7 +89,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "NonInvoicesCols",
-											"value": "@item().name"
+											"value": {
+												"value": "@item().name",
+												"type": "Expression"
+											}
 										}
 									}
 								],
@@ -101,7 +104,10 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "InvoicesCols",
-											"value": "@item().name"
+											"value": {
+												"value": "@item().name",
+												"type": "Expression"
+											}
 										}
 									}
 								]
