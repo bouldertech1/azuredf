@@ -78,7 +78,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@contains(item().name,'Invoice')",
+									"value": "@contains(item().name,pipeline().parameters.MetaDataValue)",
 									"type": "Expression"
 								},
 								"ifFalseActivities": [
@@ -111,6 +111,12 @@
 				}
 			}
 		],
+		"parameters": {
+			"MetaDataValue": {
+				"type": "string",
+				"defaultValue": "'Invoice'"
+			}
+		},
 		"variables": {
 			"InvoicesCols": {
 				"type": "Array"
