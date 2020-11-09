@@ -1,0 +1,43 @@
+{
+	"name": "AzureSqlTable2",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Retail3AzureSqlDatabase",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "Cust_ID",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "Customer_Name",
+				"type": "varchar"
+			},
+			{
+				"name": "Dept_ID",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "Salary",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			},
+			{
+				"name": "AvgSalary",
+				"type": "decimal",
+				"precision": 10,
+				"scale": 2
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "CustomerSalary"
+		}
+	}
+}

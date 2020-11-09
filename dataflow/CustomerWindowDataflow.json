@@ -1,0 +1,42 @@
+{
+	"name": "CustomerWindowDataflow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CustomerDeptTable",
+						"type": "DatasetReference"
+					},
+					"name": "CustomerSalarysource"
+				},
+				{
+					"dataset": {
+						"referenceName": "DepartmentTable",
+						"type": "DatasetReference"
+					},
+					"name": "DepartWindowsource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "AzureSqlTable2",
+						"type": "DatasetReference"
+					},
+					"name": "CustomerSalarySink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CustomerWindowJoin"
+				},
+				{
+					"name": "CustomerAvgSalaryWindow"
+				}
+			],
+			"script": "source(output(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer,\n\t\tSalary as decimal(10,2)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CustomerSalarysource\nsource(output(\n\t\tDept_ID as integer,\n\t\tDept_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> DepartWindowsource\nCustomerSalarysource, DepartWindowsource join(CustomerSalarysource@Dept_ID == DepartWindowsource@Dept_ID,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> CustomerWindowJoin\nCustomerWindowJoin window(over(DepartName = Dept_Name),\n\tAvgSalary = avg(Salary)) ~> CustomerAvgSalaryWindow\nCustomerAvgSalaryWindow sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer,\n\t\tSalary as decimal(10,2),\n\t\tAvgSalary as decimal(10,2)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name,\n\t\tDept_ID = DepartWindowsource@Dept_ID,\n\t\tSalary,\n\t\tAvgSalary\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CustomerSalarySink"
+		}
+	}
+}
