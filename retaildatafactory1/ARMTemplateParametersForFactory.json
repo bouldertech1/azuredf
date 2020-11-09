@@ -10,6 +10,9 @@
 		},
 		"Retail3AzureSqlDatabase_connectionString": {
 			"value": ""
+		},
+		"RetailAzureSqlDatabase_connectionString": {
+			"value": ""
 		}
 	}
 }

@@ -13,6 +13,100 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CustomerWindowDataflow')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "CustomerDeptTable",
+								"type": "DatasetReference"
+							},
+							"name": "CustomerSalarysource"
+						},
+						{
+							"dataset": {
+								"referenceName": "DepartmentTable",
+								"type": "DatasetReference"
+							},
+							"name": "DepartWindowsource"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "AzureSqlTable2",
+								"type": "DatasetReference"
+							},
+							"name": "CustomerSalarySink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CustomerWindowJoin"
+						},
+						{
+							"name": "CustomerAvgSalaryWindow"
+						}
+					],
+					"script": "source(output(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer,\n\t\tSalary as decimal(10,2)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CustomerSalarysource\nsource(output(\n\t\tDept_ID as integer,\n\t\tDept_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> DepartWindowsource\nCustomerSalarysource, DepartWindowsource join(CustomerSalarysource@Dept_ID == DepartWindowsource@Dept_ID,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> CustomerWindowJoin\nCustomerWindowJoin window(over(DepartName = Dept_Name),\n\tAvgSalary = avg(Salary)) ~> CustomerAvgSalaryWindow\nCustomerAvgSalaryWindow sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer,\n\t\tSalary as decimal(10,2),\n\t\tAvgSalary as decimal(10,2)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name,\n\t\tDept_ID = DepartWindowsource@Dept_ID,\n\t\tSalary,\n\t\tAvgSalary\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CustomerSalarySink"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/InvoicesContiditinalDataflow')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "InvoicesDelimitedText",
+								"type": "DatasetReference"
+							},
+							"name": "InvoicesConditionalSource"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "LowValueInvoiceTable",
+								"type": "DatasetReference"
+							},
+							"name": "LowValueInvoicesSink"
+						},
+						{
+							"dataset": {
+								"referenceName": "HighValueInvoicesTable",
+								"type": "DatasetReference"
+							},
+							"name": "HighValueInvoicesSink"
+						},
+						{
+							"dataset": {
+								"referenceName": "InvoicesTable",
+								"type": "DatasetReference"
+							},
+							"name": "InvoicesGeneralSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "InvoicesConditionalSplit"
+						}
+					],
+					"script": "source(output(\n\t\tInvoiceNo as integer '######',\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer '######',\n\t\tInvoiceDate as timestamp 'MM-dd-yyyy HH:mm',\n\t\tUnitPrice as double '######.##',\n\t\tCustomerID as integer '######',\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> InvoicesConditionalSource\nInvoicesConditionalSource split(UnitPrice <= 10,\n\tUnitPrice > 49,\n\tdisjoint: false) ~> InvoicesConditionalSplit@(LowValueInvoices, HighValueInvoices, Invoices)\nInvoicesConditionalSplit@LowValueInvoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From low_value_invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> LowValueInvoicesSink\nInvoicesConditionalSplit@HighValueInvoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From high_value_invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> HighValueInvoicesSink\nInvoicesConditionalSplit@Invoices sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From Invoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InvoicesGeneralSink"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/InvoicesCountryDataflow')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -200,7 +294,9 @@
 				],
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/CustomerWindowDataflow')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CustomerJoinPipeline')]",
@@ -284,7 +380,9 @@
 				],
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/InvoicesContiditinalDataflow')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/InvoicesCountryPipeline')]",
