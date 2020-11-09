@@ -1,0 +1,67 @@
+{
+	"name": "CountryParameterPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "CountryCopyData",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "AzureSqlSink"
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "CountryPRefTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"DSDatabaseServerNm": {
+								"value": "@pipeline().parameters.PLDatabaseServerNm",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "NewCounrtyREfTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"DSDatabaseServerNm": "@pipeline().parameters.PLDatabaseServerNm"
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"PLDatabaseServerNm": {
+				"type": "string",
+				"defaultValue": "retail3.database.windows.net"
+			}
+		},
+		"annotations": []
+	}
+}
