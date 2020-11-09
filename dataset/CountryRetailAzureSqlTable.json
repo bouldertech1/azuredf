@@ -3,7 +3,13 @@
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "RetailAzureSqlDatabase",
-			"type": "LinkedServiceReference"
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"RetailServerNm": {
+					"value": "@pipeline().parameters.DatabaseServerNm",
+					"type": "Expression"
+				}
+			}
 		},
 		"annotations": [],
 		"type": "AzureSqlTable",
