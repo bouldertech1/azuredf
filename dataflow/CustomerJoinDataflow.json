@@ -1,0 +1,49 @@
+{
+	"name": "CustomerJoinDataflow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CustomerDeptTable",
+						"type": "DatasetReference"
+					},
+					"name": "CustomerSource"
+				},
+				{
+					"dataset": {
+						"referenceName": "DepartmentTable",
+						"type": "DatasetReference"
+					},
+					"name": "DepartmentSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "HRTable",
+						"type": "DatasetReference"
+					},
+					"name": "Customersink"
+				},
+				{
+					"dataset": {
+						"referenceName": "FinanceTable",
+						"type": "DatasetReference"
+					},
+					"name": "FinanceSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CustomerJoin"
+				},
+				{
+					"name": "ConditionalSplit1"
+				}
+			],
+			"script": "source(output(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CustomerSource\nsource(output(\n\t\tDept_ID as integer,\n\t\tDept_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> DepartmentSource\nCustomerSource, DepartmentSource join(CustomerSource@Dept_ID == DepartmentSource@Dept_ID,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> CustomerJoin\nCustomerJoin split(Dept_Name == 'HR',\n\tDept_Name=='Finance',\n\tdisjoint: false) ~> ConditionalSplit1@(HRSource, FinanceSource)\nConditionalSplit1@HRSource sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete from HR'],\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Customersink\nConditionalSplit1@FinanceSource sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> FinanceSink"
+		}
+	}
+}
