@@ -78,7 +78,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@contains(item().name,pipeline().parameters.MetaDataValue)",
+									"value": "@contains(toLower(item().name),toLower(pipeline().parameters.MetaDataValue))",
 									"type": "Expression"
 								},
 								"ifFalseActivities": [
