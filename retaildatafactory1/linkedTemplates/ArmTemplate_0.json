@@ -772,108 +772,97 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/CountryDataflow')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
+			"name": "[concat(parameters('factoryName'), '/CountryPRefTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"type": "MappingDataFlow",
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@dataset().DSDatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
 				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "CountryDelimitedText",
-								"type": "DatasetReference"
-							},
-							"name": "CountrySource"
-						},
-						{
-							"dataset": {
-								"referenceName": "CountryTable",
-								"type": "DatasetReference"
-							},
-							"name": "CountryDataSource"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "CountryTable",
-								"type": "DatasetReference"
-							},
-							"name": "CountrySink"
-						}
-					],
-					"transformations": [
-						{
-							"name": "CountryNotExists"
-						},
-						{
-							"name": "CountryCdFilter"
-						}
-					],
-					"script": "source(output(\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> CountrySource\nsource(output(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CountryDataSource\nCountrySource, CountryDataSource exists(CountrySource@CountryCd == CountryDataSource@CountryCd,\n\tnegate:true,\n\tbroadcast: 'auto')~> CountryNotExists\nCountryNotExists filter(length(CountryCd) < 4) ~> CountryCdFilter\nCountryCdFilter sink(input(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCountryCd,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CountrySink"
+					"schema": "dbo",
+					"table": "country_ref"
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/CountryDelimitedText')]",
-				"[concat(variables('factoryId'), '/datasets/CountryTable')]"
+				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/CustomerJoinDataflow')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
+			"name": "[concat(parameters('factoryName'), '/NewCounrtyREfTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"type": "MappingDataFlow",
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@dataset().DSDatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
 				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "CustomerDeptTable",
-								"type": "DatasetReference"
-							},
-							"name": "CustomerSource"
-						},
-						{
-							"dataset": {
-								"referenceName": "DepartmentTable",
-								"type": "DatasetReference"
-							},
-							"name": "DepartmentSource"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "HRTable",
-								"type": "DatasetReference"
-							},
-							"name": "Customersink"
-						},
-						{
-							"dataset": {
-								"referenceName": "FinanceTable",
-								"type": "DatasetReference"
-							},
-							"name": "FinanceSink"
-						}
-					],
-					"transformations": [
-						{
-							"name": "CustomerJoin"
-						},
-						{
-							"name": "ConditionalSplit1"
-						}
-					],
-					"script": "source(output(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string,\n\t\tDept_ID as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CustomerSource\nsource(output(\n\t\tDept_ID as integer,\n\t\tDept_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> DepartmentSource\nCustomerSource, DepartmentSource join(CustomerSource@Dept_ID == DepartmentSource@Dept_ID,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> CustomerJoin\nCustomerJoin split(Dept_Name == 'HR',\n\tDept_Name=='Finance',\n\tdisjoint: false) ~> ConditionalSplit1@(HRSource, FinanceSource)\nConditionalSplit1@HRSource sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete from HR'],\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Customersink\nConditionalSplit1@FinanceSource sink(input(\n\t\tCust_ID as integer,\n\t\tCustomer_Name as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From Finance'],\n\tmapColumn(\n\t\tCust_ID,\n\t\tCustomer_Name\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> FinanceSink"
+					"schema": "dbo",
+					"table": "new_country_ref"
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/CustomerDeptTable')]",
-				"[concat(variables('factoryId'), '/datasets/DepartmentTable')]",
-				"[concat(variables('factoryId'), '/datasets/HRTable')]",
-				"[concat(variables('factoryId'), '/datasets/FinanceTable')]"
+				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
 			]
 		}
 	]
