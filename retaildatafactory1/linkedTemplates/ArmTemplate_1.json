@@ -135,7 +135,7 @@
 					"sinks": [
 						{
 							"dataset": {
-								"referenceName": "AzureSqlTable2",
+								"referenceName": "CustomerSalaryTable",
 								"type": "DatasetReference"
 							},
 							"name": "CustomerSalarySink"
@@ -464,7 +464,7 @@
 									"userProperties": [],
 									"typeProperties": {
 										"expression": {
-											"value": "@contains(item().name,pipeline().parameters.MetaDataValue)",
+											"value": "@contains(toLower(item().name),toLower('Invoice'))",
 											"type": "Expression"
 										},
 										"ifFalseActivities": [
@@ -475,7 +475,10 @@
 												"userProperties": [],
 												"typeProperties": {
 													"variableName": "NonInvoicesCols",
-													"value": "@item().name"
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
 												}
 											}
 										],
@@ -487,7 +490,10 @@
 												"userProperties": [],
 												"typeProperties": {
 													"variableName": "InvoicesCols",
-													"value": "@item().name"
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
 												}
 											}
 										]
