@@ -1,0 +1,16 @@
+{
+	"name": "CountryRetailAzureSqlTable",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "RetailAzureSqlDatabase",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "country_ref"
+		}
+	}
+}
