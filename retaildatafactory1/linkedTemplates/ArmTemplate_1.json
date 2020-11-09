@@ -13,6 +13,257 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CountryParameterPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CountryCopyData",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "Delete From new_country_ref",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "CountryId",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "CountryId",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "CountryCd",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "CountryCd",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Country",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Country",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CountryPRefTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"DSDatabaseServerNm": {
+										"value": "@pipeline().parameters.PLDatabaseServerNm",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "NewCounrtyREfTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"DSDatabaseServerNm": "@pipeline().parameters.PLDatabaseServerNm"
+								}
+							}
+						]
+					}
+				],
+				"parameters": {
+					"PLDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/UserMetaDataPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "UserMetadata",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "InvoicesDelimitedText",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"structure"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "UserMetadataFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "UserMetadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@json(string(activity('UserMetadata').output['structure']))",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@contains(item(),'name')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "InvoicesColsForEach",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "UserMetadataFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('UserMetadataFilter').output.Value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "InvoicesColIf",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@contains(toLower(item().name),toLower('Invoice'))",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "NonInvoicesColVariable",
+												"type": "AppendVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "NonInvoicesCols",
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "InvoiceColVariable",
+												"type": "AppendVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "InvoicesCols",
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"MetaDataValue": {
+						"type": "string",
+						"defaultValue": "'Invoice'"
+					}
+				},
+				"variables": {
+					"InvoicesCols": {
+						"type": "Array"
+					},
+					"NonInvoicesCols": {
+						"type": "Array"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CountryDataflow')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
@@ -308,216 +559,6 @@
 					],
 					"script": "source(output(\n\t\tInvoiceNo as integer '#######',\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer '#######',\n\t\tInvoiceDate as timestamp 'MM-dd-yyyy HH:mm',\n\t\tUnitPrice as double '#######.##',\n\t\tCustomerID as integer '#######',\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> InvoicesStocktypeSource\nInvoicesStocktypeSource derive(stocktype = iif(UnitPrice > 100, \"High Value\", \"Low Value\")) ~> StocktypeDerivedColumn\nStocktypeDerivedColumn sink(input(\n\t\tInvoiceId as integer,\n\t\tInvoiceNo as integer,\n\t\tStockCode as string,\n\t\tDescription as string,\n\t\tQuantity as integer,\n\t\tInvoiceDate as timestamp,\n\t\tUnitPrice as decimal(10,2),\n\t\tCustomerID as integer,\n\t\tCountry as string,\n\t\tstocktype as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tpreSQLs:['Delete From stockinvoices'],\n\tmapColumn(\n\t\tInvoiceNo,\n\t\tStockCode,\n\t\tDescription,\n\t\tQuantity,\n\t\tInvoiceDate,\n\t\tUnitPrice,\n\t\tCustomerID,\n\t\tCountry,\n\t\tstocktype\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InvoicesStocktypeSink"
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CountryParameterPipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CountryCopyData",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink"
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "CountryPRefTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"DSDatabaseServerNm": {
-										"value": "@pipeline().parameters.PLDatabaseServerNm",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "NewCounrtyREfTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"DSDatabaseServerNm": "@pipeline().parameters.PLDatabaseServerNm"
-								}
-							}
-						]
-					}
-				],
-				"parameters": {
-					"PLDatabaseServerNm": {
-						"type": "string",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/UserMetaDataPipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "UserMetadata",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "InvoicesDelimitedText",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"structure"
-							],
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings"
-							},
-							"formatSettings": {
-								"type": "DelimitedTextReadSettings"
-							}
-						}
-					},
-					{
-						"name": "UserMetadataFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "UserMetadata",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@json(string(activity('UserMetadata').output['structure']))",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@contains(item(),'name')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "InvoicesColsForEach",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "UserMetadataFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('UserMetadataFilter').output.Value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "InvoicesColIf",
-									"type": "IfCondition",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@contains(toLower(item().name),toLower('Invoice'))",
-											"type": "Expression"
-										},
-										"ifFalseActivities": [
-											{
-												"name": "NonInvoicesColVariable",
-												"type": "AppendVariable",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "NonInvoicesCols",
-													"value": {
-														"value": "@item().name",
-														"type": "Expression"
-													}
-												}
-											}
-										],
-										"ifTrueActivities": [
-											{
-												"name": "InvoiceColVariable",
-												"type": "AppendVariable",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "InvoicesCols",
-													"value": {
-														"value": "@item().name",
-														"type": "Expression"
-													}
-												}
-											}
-										]
-									}
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"MetaDataValue": {
-						"type": "string",
-						"defaultValue": "'Invoice'"
-					}
-				},
-				"variables": {
-					"InvoicesCols": {
-						"type": "Array"
-					},
-					"NonInvoicesCols": {
-						"type": "Array"
-					}
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},

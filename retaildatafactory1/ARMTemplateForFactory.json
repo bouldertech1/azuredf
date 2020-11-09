@@ -25,6 +25,119 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CountryParameterPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CountryCopyData",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"preCopyScript": "Delete From new_country_ref",
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "CountryId",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "CountryId",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "CountryCd",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "CountryCd",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Country",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Country",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "CountryPRefTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"DSDatabaseServerNm": {
+										"value": "@pipeline().parameters.PLDatabaseServerNm",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "NewCounrtyREfTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"DSDatabaseServerNm": "@pipeline().parameters.PLDatabaseServerNm"
+								}
+							}
+						]
+					}
+				],
+				"parameters": {
+					"PLDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/CountryPRefTable')]",
+				"[concat(variables('factoryId'), '/datasets/NewCounrtyREfTable')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CountryPipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -326,82 +439,146 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/FinanceSqlTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/UserMetaDataPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "Retail3AzureSqlDatabase",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
+				"activities": [
 					{
-						"name": "Cust_ID",
-						"type": "int",
-						"precision": 10
+						"name": "UserMetadata",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "InvoicesDelimitedText",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"structure"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
 					},
 					{
-						"name": "Customer_Name",
-						"type": "varchar"
+						"name": "UserMetadataFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "UserMetadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@json(string(activity('UserMetadata').output['structure']))",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@contains(item(),'name')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "InvoicesColsForEach",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "UserMetadataFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('UserMetadataFilter').output.Value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "InvoicesColIf",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@contains(toLower(item().name),toLower('Invoice'))",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "NonInvoicesColVariable",
+												"type": "AppendVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "NonInvoicesCols",
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "InvoiceColVariable",
+												"type": "AppendVariable",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "InvoicesCols",
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+						}
 					}
 				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "Finance"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureSqlDatabase')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CustomerSalaryTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "Retail3AzureSqlDatabase",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "Cust_ID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "Customer_Name",
-						"type": "varchar"
-					},
-					{
-						"name": "Dept_ID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "Salary",
-						"type": "decimal",
-						"precision": 10,
-						"scale": 2
-					},
-					{
-						"name": "AvgSalary",
-						"type": "decimal",
-						"precision": 10,
-						"scale": 2
+				"parameters": {
+					"MetaDataValue": {
+						"type": "string",
+						"defaultValue": "'Invoice'"
 					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "CustomerSalary"
-				}
+				},
+				"variables": {
+					"InvoicesCols": {
+						"type": "Array"
+					},
+					"NonInvoicesCols": {
+						"type": "Array"
+					}
+				},
+				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureSqlDatabase')]"
+				"[concat(variables('factoryId'), '/datasets/InvoicesDelimitedText')]"
 			]
 		},
 		{
@@ -439,6 +616,80 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureBlobStorage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CountryPRefTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@dataset().DSDatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "country_ref"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CountryRetailAzureSqlTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@pipeline().parameters.DatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "country_ref"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
 			]
 		},
 		{
@@ -506,6 +757,54 @@
 				"typeProperties": {
 					"schema": "dbo",
 					"table": "Customer"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureSqlDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CustomerSalaryTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Retail3AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Cust_ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Customer_Name",
+						"type": "varchar"
+					},
+					{
+						"name": "Dept_ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Salary",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					},
+					{
+						"name": "AvgSalary",
+						"type": "decimal",
+						"precision": 10,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "CustomerSalary"
 				}
 			},
 			"dependsOn": [
@@ -603,6 +902,37 @@
 				"typeProperties": {
 					"schema": "dbo",
 					"table": "Department"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureSqlDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/FinanceSqlTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Retail3AzureSqlDatabase",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Cust_ID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Customer_Name",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "Finance"
 				}
 			},
 			"dependsOn": [
@@ -1001,6 +1331,53 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/NewCounrtyREfTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@dataset().DSDatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "new_country_ref"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Retail3AzureBlobStorage')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -1022,6 +1399,25 @@
 				"type": "AzureSqlDatabase",
 				"typeProperties": {
 					"connectionString": "[parameters('Retail3AzureSqlDatabase_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RetailAzureSqlDatabase')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"RetailServerNm": {
+						"type": "String",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('RetailAzureSqlDatabase_connectionString')]"
 				}
 			},
 			"dependsOn": []
@@ -1350,361 +1746,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/InvoicesDelimitedText')]",
 				"[concat(variables('factoryId'), '/datasets/InvoicesStocktypeTable')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/RetailAzureSqlDatabase')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"parameters": {
-					"RetailServerNm": {
-						"type": "String",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('RetailAzureSqlDatabase_connectionString')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CountryRetailAzureSqlTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "RetailAzureSqlDatabase",
-					"type": "LinkedServiceReference",
-					"parameters": {
-						"RetailServerNm": {
-							"value": "@pipeline().parameters.DatabaseServerNm",
-							"type": "Expression"
-						}
-					}
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "country_ref"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CountryPRefTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "RetailAzureSqlDatabase",
-					"type": "LinkedServiceReference",
-					"parameters": {
-						"RetailServerNm": {
-							"value": "@dataset().DSDatabaseServerNm",
-							"type": "Expression"
-						}
-					}
-				},
-				"parameters": {
-					"DSDatabaseServerNm": {
-						"type": "string",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "CountryId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "CountryCd",
-						"type": "varchar"
-					},
-					{
-						"name": "Country",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "country_ref"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CountryParameterPipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CountryCopyData",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink"
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "CountryPRefTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"DSDatabaseServerNm": {
-										"value": "@pipeline().parameters.PLDatabaseServerNm",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "NewCounrtyREfTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"DSDatabaseServerNm": "@pipeline().parameters.PLDatabaseServerNm"
-								}
-							}
-						]
-					}
-				],
-				"parameters": {
-					"PLDatabaseServerNm": {
-						"type": "string",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/CountryPRefTable')]",
-				"[concat(variables('factoryId'), '/datasets/NewCounrtyREfTable')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NewCounrtyREfTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "RetailAzureSqlDatabase",
-					"type": "LinkedServiceReference",
-					"parameters": {
-						"RetailServerNm": {
-							"value": "@dataset().DSDatabaseServerNm",
-							"type": "Expression"
-						}
-					}
-				},
-				"parameters": {
-					"DSDatabaseServerNm": {
-						"type": "string",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "CountryId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "CountryCd",
-						"type": "varchar"
-					},
-					{
-						"name": "Country",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "new_country_ref"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/UserMetaDataPipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "UserMetadata",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "InvoicesDelimitedText",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"structure"
-							],
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings"
-							},
-							"formatSettings": {
-								"type": "DelimitedTextReadSettings"
-							}
-						}
-					},
-					{
-						"name": "UserMetadataFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "UserMetadata",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@json(string(activity('UserMetadata').output['structure']))",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@contains(item(),'name')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "InvoicesColsForEach",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "UserMetadataFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('UserMetadataFilter').output.Value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "InvoicesColIf",
-									"type": "IfCondition",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@contains(toLower(item().name),toLower('Invoice'))",
-											"type": "Expression"
-										},
-										"ifFalseActivities": [
-											{
-												"name": "NonInvoicesColVariable",
-												"type": "AppendVariable",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "NonInvoicesCols",
-													"value": {
-														"value": "@item().name",
-														"type": "Expression"
-													}
-												}
-											}
-										],
-										"ifTrueActivities": [
-											{
-												"name": "InvoiceColVariable",
-												"type": "AppendVariable",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "InvoicesCols",
-													"value": {
-														"value": "@item().name",
-														"type": "Expression"
-													}
-												}
-											}
-										]
-									}
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"MetaDataValue": {
-						"type": "string",
-						"defaultValue": "'Invoice'"
-					}
-				},
-				"variables": {
-					"InvoicesCols": {
-						"type": "Array"
-					},
-					"NonInvoicesCols": {
-						"type": "Array"
-					}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/InvoicesDelimitedText')]"
 			]
 		}
 	]
