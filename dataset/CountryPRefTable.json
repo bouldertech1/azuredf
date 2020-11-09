@@ -1,0 +1,42 @@
+{
+	"name": "CountryPRefTable",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "RetailAzureSqlDatabase",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"RetailServerNm": {
+					"value": "@dataset().DSDatabaseServerNm",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"DSDatabaseServerNm": {
+				"type": "string",
+				"defaultValue": "retail3.database.windows.net"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "CountryId",
+				"type": "int",
+				"precision": 10
+			},
+			{
+				"name": "CountryCd",
+				"type": "varchar"
+			},
+			{
+				"name": "Country",
+				"type": "varchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "country_ref"
+		}
+	}
+}
