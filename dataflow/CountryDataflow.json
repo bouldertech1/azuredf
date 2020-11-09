@@ -1,0 +1,42 @@
+{
+	"name": "CountryDataflow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CountryDelimitedText",
+						"type": "DatasetReference"
+					},
+					"name": "CountrySource"
+				},
+				{
+					"dataset": {
+						"referenceName": "CountryTable",
+						"type": "DatasetReference"
+					},
+					"name": "CountryDataSource"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "CountryTable",
+						"type": "DatasetReference"
+					},
+					"name": "CountrySink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CountryNotExists"
+				},
+				{
+					"name": "CountryCdFilter"
+				}
+			],
+			"script": "source(output(\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> CountrySource\nsource(output(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CountryDataSource\nCountrySource, CountryDataSource exists(CountrySource@CountryCd == CountryDataSource@CountryCd,\n\tnegate:true,\n\tbroadcast: 'auto')~> CountryNotExists\nCountryNotExists filter(length(CountryCd) < 4) ~> CountryCdFilter\nCountryCdFilter sink(input(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCountryCd,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CountrySink"
+		}
+	}
+}
