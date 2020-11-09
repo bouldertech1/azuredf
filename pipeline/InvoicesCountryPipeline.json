@@ -16,7 +16,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"dataflow": {
-						"referenceName": "InvoicesCountryPipeline",
+						"referenceName": "InvoicesCountryDataflow",
 						"type": "DataFlowReference"
 					},
 					"compute": {
