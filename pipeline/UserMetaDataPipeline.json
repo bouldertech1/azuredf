@@ -89,7 +89,7 @@
 										"userProperties": [],
 										"typeProperties": {
 											"variableName": "NonInvoicesCols",
-											"value": "\n@item().name"
+											"value": "@item().name"
 										}
 									}
 								],
