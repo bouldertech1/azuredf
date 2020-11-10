@@ -6,9 +6,15 @@
 			"type": "LinkedServiceReference",
 			"parameters": {
 				"RetailDatabaseServerNm": {
-					"value": "@pipeline().parameters.RetailDatabaseServerName",
+					"value": "@dataset().DSDatabaseServerNname",
 					"type": "Expression"
 				}
+			}
+		},
+		"parameters": {
+			"DSDatabaseServerNname": {
+				"type": "String",
+				"defaultValue": "retail3.database.windows.net"
 			}
 		},
 		"annotations": [],
