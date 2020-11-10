@@ -13,6 +13,96 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/NewCounrtyREfTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RetailAzureSqlDatabase",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailServerNm": {
+							"value": "@dataset().DSDatabaseServerNm",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNm": {
+						"type": "string",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "new_country_ref"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ParameterizedTable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "RetailParameterDBLinkedService",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"RetailDatabaseServerNm": {
+							"value": "@dataset().DSDatabaseServerNname",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"DSDatabaseServerNname": {
+						"type": "String",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "CountryId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "CountryCd",
+						"type": "varchar"
+					},
+					{
+						"name": "Country",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "country_ref"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CountryParameterPipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -120,7 +210,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/NewCounrtyREfTable')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/UserMetaDataPipeline')]",
@@ -206,7 +298,7 @@
 									"userProperties": [],
 									"typeProperties": {
 										"expression": {
-											"value": "@contains(toLower(item().name),toLower('Invoice'))",
+											"value": "@contains(toLower(item().name),toLower(pipeline().parameters.MetaDataValue))",
 											"type": "Expression"
 										},
 										"ifFalseActivities": [
@@ -259,6 +351,68 @@
 						"type": "Array"
 					}
 				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pipeline1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "InvoicesDelimitedText",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "InvoicesTable",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
 				"annotations": []
 			},
 			"dependsOn": []
@@ -561,6 +715,43 @@
 				}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ParameterizedDataflow')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "CountryDelimitedText",
+								"type": "DatasetReference"
+							},
+							"name": "Parameterizedsource"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ParameterizedTable",
+								"type": "DatasetReference"
+							},
+							"name": "ParameterizedSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "Filter1"
+						}
+					],
+					"script": "source(output(\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> Parameterizedsource\nParameterizedsource filter(length(CountryCd) < 4) ~> Filter1\nFilter1 sink(input(\n\t\tCountryId as integer,\n\t\tCountryCd as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCountryCd,\n\t\tCountry\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ParameterizedSink"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ParameterizedTable')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CountryPipeline')]",

@@ -18,6 +18,10 @@
 		"RetailAzureSqlDatabase_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'RetailAzureSqlDatabase'"
+		},
+		"RetailParameterDBLinkedService_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'RetailParameterDBLinkedService'"
 		}
 	},
 	"variables": {
@@ -65,6 +69,25 @@
 				"type": "AzureSqlDatabase",
 				"typeProperties": {
 					"connectionString": "[parameters('RetailAzureSqlDatabase_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RetailParameterDBLinkedService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"RetailDatabaseServerNm": {
+						"type": "String",
+						"defaultValue": "retail3.database.windows.net"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('RetailParameterDBLinkedService_connectionString')]"
 				}
 			},
 			"dependsOn": []
@@ -816,53 +839,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/Retail3AzureSqlDatabase')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NewCounrtyREfTable')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "RetailAzureSqlDatabase",
-					"type": "LinkedServiceReference",
-					"parameters": {
-						"RetailServerNm": {
-							"value": "@dataset().DSDatabaseServerNm",
-							"type": "Expression"
-						}
-					}
-				},
-				"parameters": {
-					"DSDatabaseServerNm": {
-						"type": "string",
-						"defaultValue": "retail3.database.windows.net"
-					}
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "CountryId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "CountryCd",
-						"type": "varchar"
-					},
-					{
-						"name": "Country",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "new_country_ref"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/RetailAzureSqlDatabase')]"
 			]
 		}
 	]

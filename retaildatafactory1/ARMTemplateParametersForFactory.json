@@ -13,6 +13,9 @@
 		},
 		"RetailAzureSqlDatabase_connectionString": {
 			"value": ""
+		},
+		"RetailParameterDBLinkedService_connectionString": {
+			"value": ""
 		}
 	}
 }
