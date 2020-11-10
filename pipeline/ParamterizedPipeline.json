@@ -17,7 +17,12 @@
 				"typeProperties": {
 					"dataflow": {
 						"referenceName": "ParameterizedDataflow",
-						"type": "DataFlowReference"
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"ParameterizedSink": {
+								"DSDatabaseServerNname": "retail3.database.windows.net"
+							}
+						}
 					},
 					"compute": {
 						"coreCount": 8,
