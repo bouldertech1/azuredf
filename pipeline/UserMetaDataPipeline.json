@@ -23,7 +23,8 @@
 						"structure"
 					],
 					"storeSettings": {
-						"type": "AzureBlobStorageReadSettings"
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true
 					},
 					"formatSettings": {
 						"type": "DelimitedTextReadSettings"
@@ -78,7 +79,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@contains(toLower(item().name),toLower('Invoice'))",
+									"value": "@contains(toLower(item().name),toLower(pipeline().parameters.MetaDataValue))",
 									"type": "Expression"
 								},
 								"ifFalseActivities": [
